@@ -1,0 +1,13 @@
+{% extends "labs/base.html" %}
+
+{% block title %}{{ lab.title }} &middot; {{ lab.subtitle }}{% endblock %}
+
+{% block content %}
+  <p class="breadcrumb"><a href="{% url 'labs:home' %}">&larr; All labs</a></p>
+  <h1>{{ lab.title }}: {{ lab.subtitle }}</h1>
+  <p class="lead">{{ lab.description }}</p>
+
+  <article class="lab-body">
+    {% block lab_content %}{% endblock %}
+  </article>
+{% endblock %}

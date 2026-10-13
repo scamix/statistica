@@ -1,0 +1,22 @@
+{% extends "labs/base.html" %}
+
+{% block content %}
+  <section class="hero">
+    <h1>Statistics Course Labs</h1>
+    <p>Choose a lab to open its material and exercises.</p>
+  </section>
+
+  <ul class="lab-grid">
+    {% for lab in labs %}
+      <li>
+        <a class="lab-card" href="{% url 'labs:lab_detail' lab.slug %}">
+          <span class="lab-title">{{ lab.title }}</span>
+          <span class="lab-subtitle">{{ lab.subtitle }}</span>
+          <span class="lab-description">{{ lab.description }}</span>
+        </a>
+      </li>
+    {% empty %}
+      <li>No labs available yet.</li>
+    {% endfor %}
+  </ul>
+{% endblock %}

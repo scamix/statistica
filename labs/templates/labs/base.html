@@ -1,0 +1,28 @@
+{% load static %}<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Statistics Labs{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'labs/style.css' %}">
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="{% url 'labs:home' %}">Statistics Labs</a>
+    <nav>
+      {% for item in labs %}
+        <a href="{% url 'labs:lab_detail' item.slug %}"
+           {% if lab and lab.slug == item.slug %}aria-current="page"{% endif %}>{{ item.title }}</a>
+      {% endfor %}
+    </nav>
+  </header>
+
+  <main class="container">
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="site-footer">Statistics course &middot; Labs</footer>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,177 @@
+{% extends "labs/lab_base.html" %}
+{% load static %}
+
+{% block extra_head %}
+  <style>
+    .keygen { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+    .keygen input[type="number"] { width: 5rem; padding: 0.35rem; font: inherit; }
+    .keygen button { padding: 0.4rem 0.9rem; font: inherit; cursor: pointer; }
+    .output { background: #1d2330; color: #e6e9f0; padding: 1rem; border-radius: 8px; overflow-x: auto; }
+    .note { color: var(--muted); font-size: 0.9rem; }
+
+    .charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.5rem; }
+    .charts figure { margin: 0; }
+    .charts figcaption { font-size: 0.9rem; color: var(--muted); margin-bottom: 0.5rem; }
+    .chart { display: flex; align-items: flex-end; gap: 2px; height: 160px;
+      border-bottom: 1px solid var(--border); padding-top: 1.2rem; }
+    .chart .col { position: relative; flex: 1; height: 100%; display: flex; flex-direction: column;
+      justify-content: flex-end; align-items: center; cursor: default; }
+    .chart .bar { width: 100%; max-width: 24px; background: var(--accent); border-radius: 4px 4px 0 0; }
+    .chart .col span { position: absolute; bottom: -1.4rem; font-size: 0.75rem; color: var(--muted); }
+    .chart .col.empty span { opacity: 0.5; }
+    .chart .col:hover .bar { filter: brightness(1.2); }
+    .chart .col:hover::after { content: attr(data-tip); position: absolute; bottom: 100%; left: 50%;
+      transform: translateX(-50%); white-space: nowrap; background: var(--text); color: #fff;
+      font-size: 0.75rem; padding: 0.2rem 0.45rem; border-radius: 4px; z-index: 1; }
+    .charts figure { padding-bottom: 1.4rem; }
+
+    .scroll { overflow-x: auto; }
+    .scroll.short { max-height: 16rem; overflow-y: auto; }
+    .stats { border-collapse: collapse; font-size: 0.9rem; min-width: 22rem; }
+    .stats th, .stats td { text-align: left; padding: 0.35rem 0.8rem; border-bottom: 1px solid var(--border); }
+    .stats tr.total td { font-weight: 600; }
+    .share { display: inline-block; width: 6rem; height: 8px; background: #e6ecfb; border-radius: 4px;
+      vertical-align: middle; overflow: hidden; }
+    .share span { display: block; height: 100%; background: var(--accent); }
+  </style>
+{% endblock %}
+
+{% block lab_content %}
+  <h2>Private key → public key (simple version)</h2>
+  <p>
+    Elliptic-curve scalar multiplication is a <strong>one-way function</strong>:
+    computing the public key <code>Q = kG</code> from the private key <code>k</code> is easy,
+    but finding <code>k</code> from <code>Q</code> is hard (the ECDLP). Ethereum uses the curve
+    secp256k1; here we use a tiny toy curve.
+  </p>
+  <ul>
+    <li>Curve: <code>y² = x³ + 7 (mod 17)</code></li>
+    <li>Base point: <code>G = (1, 5)</code></li>
+    <li>Public key: <code>Q = kG = G + G + … + G</code> (k times)</li>
+  </ul>
+
+  <form id="keygen" class="keygen">
+    <label for="k">Private key k</label>
+    <input id="k" type="number" value="6" min="1" max="100">
+    <button type="submit">Compute public key</button>
+  </form>
+
+  <pre id="output" class="output"></pre>
+
+  <h2>Statistical exploration</h2>
+  <p>
+    Repeat the experiment for many values of <code>k</code> (and, optionally, every valid base point)
+    and look at simple statistics of the resulting public keys.
+  </p>
+
+  <form id="st-form" class="keygen">
+    <label for="st-kmax">k from 1 to</label>
+    <input id="st-kmax" type="number" value="100" min="2" max="1000">
+    <label><input id="st-all" type="checkbox"> all valid base points (not only G = (1, 5))</label>
+    <button type="submit">Run experiment</button>
+  </form>
+  <p id="st-summary" class="note"></p>
+  <p class="note">Order n of each base point: <span id="st-orders"></span></p>
+
+  <h3>1. Distribution of the x and y coordinates</h3>
+  <div class="charts">
+    <figure>
+      <figcaption>How often each x value occurs</figcaption>
+      <div id="st-x" class="chart" role="img" aria-label="Histogram of x coordinates"></div>
+    </figure>
+    <figure>
+      <figcaption>How often each y value occurs</figcaption>
+      <div id="st-y" class="chart" role="img" aria-label="Histogram of y coordinates"></div>
+    </figure>
+  </div>
+
+  <h3>2. Apparent uniformity (chi-square test, 5% level)</h3>
+  <div class="scroll">
+    <table class="stats">
+      <thead><tr><th>Variable</th><th>Values seen</th><th>χ²</th><th>Critical value</th><th>Verdict</th></tr></thead>
+      <tbody id="st-uniform"></tbody>
+    </table>
+  </div>
+
+  <h3>3. Frequency of individual points</h3>
+  <div class="scroll short">
+    <table class="stats">
+      <thead><tr><th>Point Q</th><th>Count</th><th>Share</th></tr></thead>
+      <tbody id="st-points"></tbody>
+    </table>
+  </div>
+
+  <h3>4. Distribution of bits (share of 1s)</h3>
+  <div class="scroll">
+    <table class="stats">
+      <thead><tr><th>Bit</th><th>x</th><th>y</th></tr></thead>
+      <tbody id="st-bits"></tbody>
+    </table>
+  </div>
+
+  <h3>5. Correlation between input and output</h3>
+  <div class="scroll">
+    <table class="stats">
+      <tbody id="st-corr"></tbody>
+    </table>
+  </div>
+
+  <h3>6. Avalanche-like behaviour</h3>
+  <p class="note">Share of the 10 output bits (x ‖ y) that change when one bit of k is flipped.
+    An ideal hash function changes 50%.</p>
+  <div class="scroll">
+    <table class="stats">
+      <tbody id="st-aval"></tbody>
+    </table>
+  </div>
+
+  <h2>Discussion</h2>
+  <h3>What the numbers show</h3>
+  <ul>
+    <li><strong>Coordinates are not uniform.</strong> Only x values for which x³ + 7 is a square
+      mod 17 can occur, and with G = (1, 5) only 4 of the 17 values appear at all. The y values come in pairs
+      y and 17 − y. The χ² test rejects uniformity.</li>
+    <li><strong>Points are uniform over the group.</strong> When k runs over whole cycles, every
+      point of the subgroup generated by G appears equally often, because k ↦ kG is a bijection on 1…n − 1. With all base points pooled, subgroups of different
+      sizes (n = 3, 6, 9, 18) are mixed, so the pooled counts are no longer uniform.</li>
+    <li><strong>Bits are biased.</strong> Numbers below 17 rarely have bit 4 set, so the bits of the
+      coordinates are not fair coins. This comes from p not being a power of 2, not from a weakness.</li>
+    <li><strong>No linear correlation, but a lot of structure.</strong> r(k, x) and r(k, y) are close to 0,
+      yet kG and (n − k)G always share x, and (k + j)G = kG + jG holds every time.</li>
+    <li><strong>The "avalanche" is accidental.</strong> Flipping one bit of k changes many output bits,
+      but only because the group is tiny and kG jumps around. Nothing in the design aims for 50%,
+      unlike SHA-256.</li>
+  </ul>
+
+  <h3>Meaningful for an elliptic-curve one-way function</h3>
+  <ul>
+    <li><strong>Deterministic and easy forward:</strong> the same k always gives the same Q, and computing it is fast.</li>
+    <li><strong>Hard to invert (ECDLP):</strong> this needs a huge group (n ≈ 2²⁵⁶ on secp256k1).
+      No statistic on a toy curve can measure it, because here everything can be brute-forced.</li>
+    <li><strong>Uniform over the group:</strong> for a uniformly random k, Q is a uniformly random point of
+      the group. This is the distribution property that matters, not uniformity of bit strings.</li>
+    <li><strong>Algebraic structure is a feature:</strong> (a + b)G = aG + bG is exactly what makes digital
+      signatures (ECDSA) and key agreement (ECDH) possible. The ±Q symmetry is known and harmless.</li>
+  </ul>
+
+  <h3>Specific to cryptographic hash functions</h3>
+  <ul>
+    <li><strong>Avalanche effect:</strong> one changed input bit flips about 50% of the output bits.</li>
+    <li><strong>Uniform, independent output bits</strong> that look like a random bit string.</li>
+    <li><strong>No exploitable relations:</strong> H(a + b) has nothing to do with H(a) and H(b).
+      A hash must not have the structure that the curve needs.</li>
+    <li><strong>Collision resistance</strong> for inputs of any length, mapped to a fixed-length output.
+      kG has no collisions at all for 1 ≤ k ≤ n − 1, because it is a bijection.</li>
+  </ul>
+  <p>
+    Ethereum uses both: the curve turns the private key into a public key with useful structure
+    (for signatures), and the Keccak-256 hash turns the public key into a random-looking 20-byte
+    address. Keep in mind that statistical tests only measure appearance. Passing them does not make a
+    function one-way, and failing them (biased bits) does not make it insecure.
+  </p>
+{% endblock %}
+
+{% block scripts %}
+  <script src="{% static 'labs/lab1/keygen.js' %}"></script>
+  <script src="{% static 'labs/lab1/stats.js' %}"></script>
+{% endblock %}

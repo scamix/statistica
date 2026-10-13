@@ -1,0 +1,285 @@
+{% extends "labs/lab_base.html" %}
+{% load static %}
+
+{% block extra_head %}
+  <link rel="stylesheet" href="{% static 'labs/lab2/lab2.css' %}">
+{% endblock %}
+
+{% block lab_content %}
+  <h2>Hashing, key derivation and cryptographic primitives</h2>
+
+  <p class="w-warning">
+    <strong>Educational tool.</strong> Everything runs in your browser and nothing is sent anywhere, but
+    never type a real recovery phrase into a website, this one included. Use generated phrases or the
+    public test phrase only.
+  </p>
+
+  <nav class="w-toc" aria-label="Sections">
+    <a href="#pipeline">1. Pipeline</a>
+    <a href="#concepts">2. Five concepts</a>
+    <a href="#standards">3. The standards</a>
+    <a href="#why">4. Why several techniques</a>
+    <a href="#hashes">5. SHA-2 vs Keccak / SHA-3</a>
+    <a href="#history">6. Timeline</a>
+    <a href="#stats">7. Statistical properties</a>
+  </nav>
+
+  <!-- ============================================================ 1 -->
+  <section id="pipeline">
+    <h2>1. From mnemonic to checksummed address</h2>
+    <pre class="w-flow">Mnemonic ─BIP-39→ Seed ─BIP-32/BIP-44→ Private key ─secp256k1→ Public key ─Keccak-256→ Address ─EIP-55→ Checksummed address</pre>
+
+    <form id="w-form" class="w-form">
+      <label class="w-wide">Mnemonic (BIP-39 words)
+        <textarea id="w-phrase" rows="2" spellcheck="false" autocomplete="off">test test test test test test test test test test test junk</textarea>
+      </label>
+      <div class="w-buttons">
+        <button type="button" data-generate="16">Generate 12 words</button>
+        <button type="button" data-generate="32">Generate 24 words</button>
+        <button type="button" id="w-test">Public test phrase</button>
+      </div>
+      <label>Optional passphrase
+        <input id="w-pass" type="text" autocomplete="off" placeholder="(empty)">
+      </label>
+      <label>Derivation path
+        <input id="w-path" type="text" value="m/44'/60'/0'/0/0" spellcheck="false">
+      </label>
+      <button type="submit" class="w-primary">Run pipeline</button>
+    </form>
+
+    <p id="w-error" class="w-error" role="alert" hidden></p>
+    <ol id="w-steps" class="w-steps"></ol>
+
+    <h3>Check an address (EIP-55)</h3>
+    <p class="w-note">Paste an address, change one character, and see whether the checksum catches it.</p>
+    <div class="w-form">
+      <label class="w-wide">Address
+        <input id="w-check" type="text" spellcheck="false" value="0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266">
+      </label>
+    </div>
+    <p id="w-check-result" class="w-check" aria-live="polite"></p>
+  </section>
+
+  <!-- ============================================================ 2 -->
+  <section id="concepts">
+    <h2>2. Five different things: keep them apart</h2>
+    <div class="w-scroll">
+      <table class="w-table">
+        <thead><tr><th>Concept</th><th>What it does</th><th>In the pipeline</th><th>Reversible?</th><th>Involves a secret?</th></tr></thead>
+        <tbody>
+          <tr><th><span class="tag t-gen">Key generation</span></th>
+            <td>Creates a <em>new</em> secret from true randomness (a CSPRNG). This is the only step that adds entropy.</td>
+            <td>128–256 random bits → BIP-39 entropy</td><td>—</td><td>Creates it</td></tr>
+          <tr><th><span class="tag t-der">Key derivation</span></th>
+            <td>Computes further secrets <em>deterministically</em> from an existing secret. Same input, same keys, so one backup restores everything.</td>
+            <td>PBKDF2 (mnemonic → seed), HMAC-SHA512 (seed → master key → child keys)</td><td>No (one-way)</td><td>Yes</td></tr>
+          <tr><th><span class="tag t-pk">Public-key cryptography</span></th>
+            <td>A key pair with a one-way link: the public key can be shared, the private key signs. Security rests on the ECDLP.</td>
+            <td>secp256k1: private key k → public key K = k·G; ECDSA signs transactions</td><td>No (ECDLP)</td><td>The private key</td></tr>
+          <tr><th><span class="tag t-hash">Hashing</span></th>
+            <td>Maps any input to a fixed-size fingerprint. One-way, collision-resistant, avalanche effect. No key.</td>
+            <td>Keccak-256 (address, EIP-55), SHA-256 (BIP-39 checksum), SHA-512 (inside HMAC/PBKDF2)</td><td>No</td><td>No</td></tr>
+          <tr><th><span class="tag t-cs">Checksum</span></th>
+            <td>A few redundant bits that detect <em>accidental</em> errors (typos). Not protection against attackers.</td>
+            <td>BIP-39 last 4–8 bits; EIP-55 upper/lower case</td><td>—</td><td>No</td></tr>
+          <tr><th><span class="tag t-enc">Encoding</span></th>
+            <td>Changes only the <em>representation</em> of the same data. No security at all.</td>
+            <td>bits → words, bytes → hex, <code>0x</code> prefix, mixed case</td><td>Yes, fully</td><td>No</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="w-note">Several steps combine two roles: a BIP-39 mnemonic is an <em>encoding</em> of the entropy plus a
+      <em>checksum</em>, and EIP-55 is a <em>checksum</em> carried by an <em>encoding</em> (letter case).</p>
+  </section>
+
+  <!-- ============================================================ 3 -->
+  <section id="standards">
+    <h2>3. Role and purpose of each standard</h2>
+    <div class="w-cards">
+      <article class="w-card">
+        <h3>BIP-39 <span class="w-year">2013</span></h3>
+        <p class="w-io">entropy ↔ mnemonic → seed</p>
+        <p>Turns 128–256 random bits into 12–24 words from a 2048-word list (11 bits per word, plus a SHA-256
+          checksum). The words are stretched into a 512-bit <strong>seed</strong> with PBKDF2-HMAC-SHA512
+          (2048 rounds, salt "mnemonic" + optional passphrase).</p>
+        <p class="w-purpose">Purpose: a backup that humans can write down and type back without errors.</p>
+      </article>
+      <article class="w-card">
+        <h3>BIP-32 <span class="w-year">2012</span></h3>
+        <p class="w-io">seed → tree of keys</p>
+        <p>Hierarchical deterministic (HD) wallets: HMAC-SHA512 turns the seed into a master key and a
+          <em>chain code</em>, and then into an unlimited tree of child keys. Hardened children use the parent
+          private key, normal children can also be derived from the parent public key (watch-only wallets).</p>
+        <p class="w-purpose">Purpose: one seed backs up a whole tree of keys, so there's no need to back up each key.</p>
+      </article>
+      <article class="w-card">
+        <h3>BIP-44 <span class="w-year">2014</span></h3>
+        <p class="w-io">which branch of the tree?</p>
+        <p>Fixes the meaning of the path levels:
+          <code>m / purpose' / coin_type' / account' / change / address_index</code>. Ethereum is coin type 60
+          (SLIP-44), so the first account is <code>m/44'/60'/0'/0/0</code>.</p>
+        <p class="w-purpose">Purpose: interoperability, so different wallets find the same addresses from the same phrase.</p>
+      </article>
+      <article class="w-card">
+        <h3>secp256k1 <span class="w-year">SEC 2, 2000</span></h3>
+        <p class="w-io">private key → public key</p>
+        <p>The elliptic curve y² = x³ + 7 over a 256-bit prime field (the same curve as in HMWK 1, at full size).
+          K = k·G is easy to compute and infeasible to invert, and ECDSA on this curve signs every Ethereum transaction.</p>
+        <p class="w-purpose">Purpose: prove ownership (signatures) without revealing the private key.</p>
+      </article>
+      <article class="w-card">
+        <h3>Keccak-256 <span class="w-year">2012 / Ethereum 2015</span></h3>
+        <p class="w-io">public key → address</p>
+        <p>The sponge hash that won the SHA-3 competition, used in Ethereum with its <em>original</em> padding.
+          The address is the last 20 bytes of Keccak-256(x ‖ y) of the 64-byte public key.</p>
+        <p class="w-purpose">Purpose: a short, fixed-size identifier that does not reveal the public key until the first signature.</p>
+      </article>
+      <article class="w-card">
+        <h3>EIP-55 <span class="w-year">2016</span></h3>
+        <p class="w-io">address → checksummed address</p>
+        <p>Hashes the lowercase hex address with Keccak-256 and writes letter <em>i</em> in upper case when hash
+          nibble <em>i</em> is ≥ 8. The address stays valid hex and backwards compatible.</p>
+        <p class="w-purpose">Purpose: catch typos before sending funds to a wrong address.</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- ============================================================ 4 -->
+  <section id="why">
+    <h2>4. Why several techniques instead of one algorithm?</h2>
+    <p>Each step solves a different problem, and the requirements conflict, so no single primitive can do all of them:</p>
+    <ul>
+      <li><strong>BIP-39 / BIP-32 / BIP-44 → key management and derivation.</strong> Humans need a short, robust
+        backup (words + checksum), the wallet needs many keys from it (deterministic tree), and wallets need to agree
+        where to look (standard paths). PBKDF2 is <em>deliberately slow</em> to make passphrase guessing harder,
+        which would be a disaster for a hash used everywhere.</li>
+      <li><strong>secp256k1 → public/private key relationship and signatures.</strong> It needs <em>algebraic
+        structure</em> (k·G, (a + b)·G = a·G + b·G) so that signatures can be verified with the public key alone.
+        A hash function has no such structure on purpose.</li>
+      <li><strong>Keccak-256 → hashing.</strong> It needs <em>no structure</em>: a fast, keyless, one-way,
+        collision-resistant fingerprint that compresses 64 bytes into 20 and looks random.</li>
+      <li><strong>EIP-55 → checksum / error detection.</strong> It protects against human mistakes, not attackers,
+        and must not change the address itself. Changing only the letter case gives about 15 check bits for free.</li>
+    </ul>
+    <p>The design separates concerns: randomness only at the start, secrecy only up to the private key,
+      and public, keyless steps afterwards. Each primitive can be analysed (or replaced) on its own.</p>
+  </section>
+
+  <!-- ============================================================ 5 -->
+  <section id="hashes">
+    <h2>5. SHA-2 / SHA-512 vs Keccak / SHA-3</h2>
+    <div class="w-scroll">
+      <table class="w-table">
+        <thead><tr><th></th><th>SHA-2 (SHA-256, SHA-512)</th><th>Keccak / SHA-3</th></tr></thead>
+        <tbody>
+          <tr><th>Designers, year</th><td>NSA; NIST standard 2001</td><td>Bertoni, Daemen, Peeters, Van Assche; won the NIST competition 2012, FIPS 202 in 2015</td></tr>
+          <tr><th>Construction</th><td>Merkle–Damgård: a compression function applied block by block</td><td>Sponge: absorb input into a 1600-bit state, permute (Keccak-f), squeeze output</td></tr>
+          <tr><th>Length extension</th><td>Vulnerable (that is one reason HMAC exists)</td><td>Not vulnerable</td></tr>
+          <tr><th>In the wallet pipeline</th><td>SHA-256: BIP-39 checksum. SHA-512: PBKDF2 (seed) and HMAC (BIP-32)</td><td>Keccak-256: address and EIP-55 checksum</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>
+      <strong>Keccak-256 ≠ SHA3-256.</strong> NIST standardized Keccak as SHA-3 but added domain-separation bits to
+      the padding: the byte appended to the message is <code>0x06</code> in SHA3-256 and <code>0x01</code> in the
+      original Keccak. Ethereum adopted Keccak before FIPS 202 was final and kept the original padding. Same
+      permutation, same rate, different output (older Solidity even called it <code>sha3</code>).
+    </p>
+
+    <h3>Try it: one input, four hashes</h3>
+    <div class="w-form">
+      <label class="w-wide">Input text (UTF-8)
+        <input id="h-input" type="text" value="" placeholder="(empty string)">
+      </label>
+    </div>
+    <div class="w-scroll">
+      <table class="w-table w-hashes">
+        <tbody id="h-out"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============================================================ 6 -->
+  <section id="history">
+    <h2>6. Temporal and historical context</h2>
+    <ol class="w-timeline">
+      <li><span class="w-when">1976</span> Diffie–Hellman: the idea of public-key cryptography. <span class="w-ctx">context</span></li>
+      <li class="w-key"><span class="w-when">1977</span> <strong>RSA</strong>: the first practical public-key cryptosystem (factoring).</li>
+      <li><span class="w-when">1985</span> Koblitz and Miller propose elliptic-curve cryptography. <span class="w-ctx">context</span></li>
+      <li><span class="w-when">2000</span> SEC 2 defines secp256k1; PBKDF2 published in RFC 2898. <span class="w-ctx">context</span></li>
+      <li class="w-key"><span class="w-when">2001</span> <strong>SHA-2</strong> (SHA-256, SHA-512) standardized by NIST.</li>
+      <li><span class="w-when">2009</span> Bitcoin uses secp256k1 and SHA-256. <span class="w-ctx">context</span></li>
+      <li class="w-key"><span class="w-when">2012</span> <strong>BIP-32</strong>: hierarchical deterministic wallets. Keccak wins the SHA-3 competition.</li>
+      <li class="w-key"><span class="w-when">2013</span> <strong>BIP-39</strong>: mnemonic code for generating deterministic keys.</li>
+      <li class="w-key"><span class="w-when">2014</span> <strong>BIP-44</strong>: multi-account HD wallets.</li>
+      <li class="w-key"><span class="w-when">2015</span> <strong>SHA-3</strong> standardized by NIST (FIPS 202). Ethereum launches with the original Keccak-256.</li>
+      <li class="w-key"><span class="w-when">2016</span> <strong>EIP-55</strong>: mixed-case checksum addresses for Ethereum.</li>
+    </ol>
+    <p>
+      The order shows how the pipeline grew: the primitives (public-key cryptography, SHA-2, elliptic curves)
+      came from academic and government cryptography, while the wallet layers (BIP-32/39/44) were added by the
+      Bitcoin community to solve key management. Ethereum then reused those wallet standards (coin type 60),
+      chose Keccak for hashing, and added EIP-55 to fix the missing checksum in its addresses.
+    </p>
+  </section>
+
+  <!-- ============================================================ 7 -->
+  <section id="stats">
+    <h2>7. Statistical properties</h2>
+    <p>Generate many random wallets and measure the outputs of each step.</p>
+    <form id="s-form" class="w-form w-inline">
+      <label>Wallets <input id="s-count" type="number" value="20" min="5" max="500"></label>
+      <label class="w-check-label"><input id="s-weak" type="checkbox"> weak random generator (only 65 536 possible wallets)</label>
+      <button type="submit" class="w-primary">Run experiment</button>
+      <progress id="s-progress" value="0" max="1" hidden></progress>
+    </form>
+    <p id="s-summary" class="w-note"></p>
+
+    <h3>a. Bit balance at every step (share of 1s, ideal 50%)</h3>
+    <div class="w-scroll"><table class="w-table"><thead><tr><th>Step</th><th>Kind</th><th>Bits per wallet</th><th>Share of 1s</th><th>χ² (1 df)</th></tr></thead><tbody id="s-bits"></tbody></table></div>
+
+    <h3>b. Hex digits of the addresses</h3>
+    <figure class="w-figure">
+      <figcaption>Frequency of each hex digit in the addresses (ideal 1/16 = 6.25% each)</figcaption>
+      <div id="s-hex" class="w-chart" role="img" aria-label="Histogram of hex digits"></div>
+      <p id="s-hex-chi" class="w-note"></p>
+    </figure>
+
+    <h3>c. Avalanche: change one bit of the entropy</h3>
+    <p class="w-note">Share of output bits that change at each step when a single bit of the initial entropy is flipped.</p>
+    <div class="w-scroll"><table class="w-table"><thead><tr><th>Step</th><th>Kind</th><th>Bits changed (mean)</th><th>Min – max</th></tr></thead><tbody id="s-aval"></tbody></table></div>
+
+    <h3>d. Checksums: how many errors do they catch?</h3>
+    <div class="w-scroll"><table class="w-table"><thead><tr><th>Test</th><th>Measured</th><th>Theory</th></tr></thead><tbody id="s-checks"></tbody></table></div>
+
+    <h3>What the statistics mean</h3>
+    <ul>
+      <li><strong>Only the entropy is random.</strong> All later values are deterministic functions of the
+        128 random bits (plus the passphrase). They <em>look</em> uniform and pass the tests above, but they
+        contain no extra randomness.</li>
+      <li><strong>Hashing and key derivation spread every change.</strong> Seed, keys, hash and address change
+        about 50% of their bits when one entropy bit flips (avalanche). Encoding steps do not: the mnemonic changes
+        only in the flipped bit and a few checksum bits.</li>
+      <li><strong>Uniform hex digits in the address</strong> are a property of Keccak-256 output. The public key's x
+        coordinate is also close to uniform; its prefix byte (04) is fixed, so the raw encoding is not.</li>
+      <li><strong>Checksums are about probability, not secrecy:</strong> 4 BIP-39 bits catch 15 of 16 wrong words;
+        EIP-55 has about 15 case bits per address, so a random typo slips through with probability about 2⁻¹⁵.
+        An all-lowercase address carries no checksum at all.</li>
+      <li><strong>Expect some false alarms.</strong> At the 5% level, about 1 test in 20 "rejects" even for perfect
+        random data. Run the experiment again and the rejection moves elsewhere. A real defect would reject
+        consistently, and more strongly as the sample grows.</li>
+      <li><strong>Tick "weak random generator" and run again:</strong> every statistic still looks perfect, yet there
+        are only 65 536 possible wallets and an attacker can try them all in seconds. Statistical tests on the
+        outputs cannot detect bad input randomness, because the hash functions hide it. Security comes from the
+        unpredictability of the entropy, which is why wallets must use a cryptographic RNG.</li>
+    </ul>
+  </section>
+
+{% endblock %}
+
+{% block scripts %}
+  <script src="{% static 'labs/lab2/wordlist.js' %}"></script>
+  <script src="{% static 'labs/lab2/crypto.js' %}"></script>
+  <script src="{% static 'labs/lab2/pipeline.js' %}"></script>
+  <script src="{% static 'labs/lab2/stats.js' %}"></script>
+{% endblock %}

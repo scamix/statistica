@@ -1,0 +1,96 @@
+:root {
+  --bg: #f7f8fa;
+  --surface: #ffffff;
+  --text: #1d2330;
+  --muted: #5b6475;
+  --accent: #2b5fd9;
+  --border: #e2e6ee;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+}
+
+a { color: var(--accent); }
+
+.site-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 1rem 1.5rem;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.brand {
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.site-header nav { display: flex; gap: 1rem; flex-wrap: wrap; }
+.site-header nav a { text-decoration: none; color: var(--muted); }
+.site-header nav a:hover,
+.site-header nav a[aria-current="page"] { color: var(--accent); }
+
+.container {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 3rem;
+}
+
+.hero h1 { margin-bottom: 0.25rem; }
+.hero p { color: var(--muted); margin-top: 0; }
+
+.lab-grid {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 1rem;
+}
+
+.lab-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  height: 100%;
+  padding: 1.25rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  text-decoration: none;
+  color: var(--text);
+  transition: border-color 0.15s, transform 0.15s;
+}
+
+.lab-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+.lab-title { font-size: 1.25rem; font-weight: 700; color: var(--accent); }
+.lab-subtitle { font-weight: 600; }
+.lab-description { color: var(--muted); font-size: 0.95rem; }
+
+.breadcrumb a { text-decoration: none; }
+.lead { color: var(--muted); font-size: 1.1rem; }
+
+.lab-body {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.5rem 1.5rem 1.5rem;
+}
+
+.site-footer {
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.85rem;
+  padding: 1.5rem;
+}
