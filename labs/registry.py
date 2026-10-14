@@ -8,8 +8,8 @@ LABS = [
     {
         "slug": "lab1",
         "title": "Lab 1",
-        "subtitle": "HMWK 1 — Public-key cryptography (simple)",
-        "description": "The same homework in a minimal version: compute G, 2G, …, kG, "
+        "subtitle": "HMWK 1 — Public-key cryptography",
+        "description": "Compute G, 2G, …, kG, "
         "print the toy public key, then explore the statistics of the results.",
     },
     {
