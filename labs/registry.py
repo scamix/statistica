@@ -19,6 +19,13 @@ LABS = [
         "description": "BIP-39, BIP-32/44, secp256k1, Keccak-256 and EIP-55: the full wallet "
         "pipeline step by step, its history and its statistical properties.",
     },
+    {
+        "slug": "lab3",
+        "title": "Lab 3",
+        "subtitle": "HMWK 3 — Toy curve encryption vs the Caesar cipher",
+        "description": "EC-ElGamal on the toy secp256k1-style curve of Lab 1: "
+        "encrypt and decrypt a message, compare it with the Caesar cipher, then break Caesar with letter statistics.",
+    },
 ]
 
 

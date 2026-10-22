@@ -26,6 +26,12 @@ class LabsViewsTests(TestCase):
         for script in ("wordlist.js", "crypto.js", "pipeline.js", "stats.js"):
             self.assertContains(response, f"labs/lab2/{script}")
 
+    def test_lab3_loads_elgamal_script(self):
+        response = self.client.get(reverse("labs:lab_detail", args=["lab3"]))
+        self.assertContains(response, "labs/lab3/elgamal.js")
+        self.assertContains(response, "labs/lab3/caesar.js")
+        self.assertContains(response, "labs/lab3/cryptanalysis.js")
+
     def test_unknown_lab_returns_404(self):
         response = self.client.get(reverse("labs:lab_detail", args=["lab999"]))
         self.assertEqual(response.status_code, 404)

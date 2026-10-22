@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lab 3 &middot; HMWK 3 — Toy curve encryption vs the Caesar cipher</title>
+  <link rel="stylesheet" href="/statistica/static/labs/style.css">
+  
+  <style>
+    .keygen { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; margin-bottom: 0.75rem; }
+    .keygen input { padding: 0.35rem; font: inherit; }
+    .keygen input[type="number"] { width: 5rem; }
+    .keygen input[type="text"] { width: 18rem; max-width: 100%; }
+    .keygen button { padding: 0.4rem 0.9rem; font: inherit; cursor: pointer; }
+    .output { background: #1d2330; color: #e6e9f0; padding: 1rem; border-radius: 8px; overflow-x: auto; }
+    .note { color: var(--muted); font-size: 0.9rem; }
+    .sample { width: 100%; box-sizing: border-box; padding: 0.5rem; font: inherit; margin-bottom: 0.75rem; }
+    .scroll { overflow-x: auto; }
+    .share { display: inline-block; width: 6rem; height: 8px; background: #e6ecfb; border-radius: 4px;
+      vertical-align: middle; overflow: hidden; }
+    .share span { display: block; height: 100%; background: var(--accent); }
+    .stats { border-collapse: collapse; font-size: 0.9rem; }
+    .stats th, .stats td { text-align: left; padding: 0.35rem 0.8rem; border-bottom: 1px solid var(--border); }
+  </style>
+
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="/statistica/">Statistics Labs</a>
+    <nav>
+      
+        <a href="/statistica/lab1/"
+           >Lab 1</a>
+      
+        <a href="/statistica/lab2/"
+           >Lab 2</a>
+      
+        <a href="/statistica/lab3/"
+           aria-current="page">Lab 3</a>
+      
+    </nav>
+  </header>
+
+  <main class="container">
+    
+  <p class="breadcrumb"><a href="/statistica/">&larr; All labs</a></p>
+  <h1>Lab 3: HMWK 3 — Toy curve encryption vs the Caesar cipher</h1>
+  <p class="lead">EC-ElGamal on the toy secp256k1-style curve of Lab 1: encrypt and decrypt a message, compare it with the Caesar cipher, then break Caesar with letter statistics.</p>
+
+  <article class="lab-body">
+    
+  <h2>1. Elliptic-curve encryption (EC-ElGamal)</h2>
+  <p>
+    We use the toy curve of Lab 1, <code>y² = x³ + 7 (mod 17)</code> with <code>G = (1, 5)</code>.
+  </p>
+  <ul>
+    <li><strong>Private key</strong> <code>d</code>: secret integer of the receiver (Bob).</li>
+    <li><strong>Public key</strong> <code>Q = dG</code>: published by Bob; computing <code>d</code> from it is the ECDLP.</li>
+    <li><strong>Ephemeral key</strong> <code>r</code>: fresh random integer chosen by the sender (Alice) for each block.</li>
+  </ul>
+  <ol>
+    <li><strong>Encoding.</strong> The text is split into 4-bit values <code>m</code>, each mapped to one of 16 fixed curve points <code>M</code>.</li>
+    <li><strong>Encryption</strong> (uses <code>Q</code> only). Send <code>C1 = rG</code> and <code>C2 = M + rQ</code>.</li>
+    <li><strong>Decryption</strong> (uses <code>d</code>). Since <code>dC1 = d(rG) = r(dG) = rQ</code>, we get <code>M = C2 − dC1</code>.</li>
+  </ol>
+
+  <form id="enc" class="keygen">
+    <label for="msg">Message</label>
+    <input id="msg" type="text" value="Hi!" maxlength="40">
+    <label for="d">Private key d</label>
+    <input id="d" type="number" value="4" min="1" max="8">
+    <button type="submit">Encrypt and decrypt</button>
+  </form>
+  <pre id="output" class="output">Press the button.</pre>
+
+  <form id="eve" class="keygen">
+    <label for="d-wrong">Decrypt the last ciphertext with a wrong d =</label>
+    <input id="d-wrong" type="number" value="1" min="1" max="8">
+    <button type="submit">Try</button>
+  </form>
+  <p id="eve-out" class="note"></p>
+
+  <h2>2. Caesar cipher</h2>
+  <p>
+    Each letter is shifted by a secret <code>k</code>: encryption <code>c = (m + k) mod 26</code>,
+    decryption <code>m = (c − k) mod 26</code>. The same message is used.
+  </p>
+  <form id="caesar" class="keygen">
+    <label for="shift">Shift k</label>
+    <input id="shift" type="number" value="3" min="1" max="25">
+    <button type="submit">Encrypt and decrypt</button>
+  </form>
+  <pre id="caesar-out" class="output">Press the button.</pre>
+
+  <h2>3. Comparison</h2>
+  <h3>Procedures</h3>
+  <table class="stats">
+    <thead><tr><th></th><th>Caesar</th><th>EC-ElGamal</th></tr></thead>
+    <tbody>
+      <tr><td>Type</td><td>symmetric (one key)</td><td>public-key (<code>Q</code> / <code>d</code>)</td></tr>
+      <tr><td>Encryption</td><td><code>m + k</code> in Z<sub>26</sub></td><td><code>(rG, M + rQ)</code> in the curve group</td></tr>
+      <tr><td>Decryption</td><td><code>c − k</code></td><td><code>C2 − dC1</code></td></tr>
+      <tr><td>Randomness</td><td>deterministic</td><td>new <code>r</code> per block</td></tr>
+      <tr><td>Ciphertext size</td><td>same as message</td><td>two points per 4-bit block</td></tr>
+      <tr><td>Hard problem</td><td>none</td><td>discrete logarithm (ECDLP)</td></tr>
+    </tbody>
+  </table>
+  <p>
+    Both mask the plaintext by adding an element of a cyclic group and remove it by subtracting the same element.
+  </p>
+
+  <h3>Key spaces</h3>
+  <table class="stats">
+    <thead><tr><th></th><th>Caesar</th><th>Toy ElGamal</th><th>secp256k1</th></tr></thead>
+    <tbody>
+      <tr><td>Keys</td><td>25</td><td>8 (<code>G</code> has order 9)</td><td>≈ 2²⁵⁶</td></tr>
+      <tr><td>Brute force</td><td>instant</td><td>instant</td><td>infeasible</td></tr>
+    </tbody>
+  </table>
+  <p>
+    The toy curve is as weak as Caesar because its key space is tiny. Only ElGamal improves by enlarging the group.
+  </p>
+
+  <h3>Statistical properties</h3>
+  <p>
+    Paste a longer text and compare the symbols of the plaintext with those of each ciphertext
+    (distinct symbols, Shannon entropy, share of the most frequent symbol, index of coincidence).
+  </p>
+  <form id="stats-form" class="keygen">
+    <label for="stats-shift">Caesar k</label>
+    <input id="stats-shift" type="number" value="3" min="1" max="25">
+    <label for="stats-d">ElGamal d</label>
+    <input id="stats-d" type="number" value="4" min="1" max="8">
+    <button type="submit">Compare</button>
+  </form>
+  <textarea id="sample" class="sample" rows="3">The quick brown fox jumps over the lazy dog while the sun sets slowly behind the hills and the evening wind carries the sound of distant bells across the quiet valley where everyone is already asleep</textarea>
+  <div class="scroll">
+    <table class="stats">
+      <thead><tr><th>Symbols</th><th>Count</th><th>Distinct</th><th>Entropy (bits)</th><th>Top share</th><th>Coincidence</th></tr></thead>
+      <tbody id="stats-out"><tr><td colspan="6">Press Compare.</td></tr></tbody>
+    </table>
+  </div>
+  <p id="stats-note" class="note"></p>
+  <ul>
+    <li><strong>Caesar</strong> only relabels the alphabet, so entropy, top share and coincidence equal those of the plaintext.
+      The most frequent letter reveals <code>k</code> (frequency analysis).</li>
+    <li><strong>ElGamal</strong> adds a random mask: <code>C1</code> is independent of the message and <code>C2</code> is spread over many points,
+      so equal plaintext blocks give different ciphertexts. In the toy the mask takes only 9 values, so the spread is not fully uniform.</li>
+  </ul>
+
+  <h3>Conclusion</h3>
+  <p>
+    Caesar is a keyed substitution with a 25-key space and no statistical protection. EC-ElGamal needs two keys and a hard
+    problem, randomises every block and hides the plaintext statistics; on secp256k1 its key space is also out of reach for brute force.
+  </p>
+
+  <h2>4. Statistical cryptanalysis of the Caesar cipher</h2>
+  <p>
+    <strong>Algorithm.</strong> Letter frequencies <code>p<sub>i</sub></code> are measured on a reference English corpus
+    (about 1400 letters, with add-one smoothing). For a ciphertext of <code>N</code> letters and each candidate key
+    <code>k = 0, …, 25</code>:
+  </p>
+  <ol>
+    <li>decrypt with <code>k</code> and count the letters, obtaining the observed counts <code>O<sub>i</sub></code>;</li>
+    <li>compute <code>χ²(k) = Σ (O<sub>i</sub> − N·p<sub>i</sub>)² / (N·p<sub>i</sub>)</code>;</li>
+    <li>return the <code>k</code> with the smallest <code>χ²</code>.</li>
+  </ol>
+  <p>
+    Only 26 candidates are tested, but the statistic does the work: the true key is the shift that makes the whole
+    distribution look English, not just the letter E.
+  </p>
+
+  <form id="attack-form" class="keygen">
+    <button type="submit">Attack the ciphertext below</button>
+  </form>
+  <textarea id="cipher" class="sample" rows="2"></textarea>
+  <pre id="attack-out" class="output">Press the button.</pre>
+
+  <h3>Effectiveness by ciphertext length</h3>
+  <p>
+    Random windows of a different English text (not in the reference corpus) are encrypted with a random key and attacked.
+  </p>
+  <form id="exp-form" class="keygen">
+    <button type="submit">Run experiment</button>
+  </form>
+  <div class="scroll">
+    <table class="stats">
+      <thead><tr><th>Letters</th><th>Key recovered</th><th></th></tr></thead>
+      <tbody id="exp-out"><tr><td colspan="3">Press Run experiment.</td></tr></tbody>
+    </table>
+  </div>
+  <p id="exp-note" class="note"></p>
+
+  <h3>Discussion</h3>
+  <ul>
+    <li><strong>Effectiveness.</strong> The success rate rises quickly with length: it is already very high at 20 letters and essentially 100% from 50 letters,
+      because the observed distribution converges to the language distribution as <code>N</code> grows.</li>
+    <li><strong>Short texts.</strong> With 5–10 letters the sample is too small to show the language profile, so wrong keys can score better
+      (about half the 5-letter ciphertexts fail).</li>
+    <li><strong>Limitations.</strong> The attack needs the language to be known and a reference corpus of that language. It assumes a single fixed shift,
+      so it fails on polyalphabetic ciphers such as Vigenère, and on text whose letters are unusual (a lipogram, a table of numbers, a different language).</li>
+    <li><strong>Why it works at all.</strong> Caesar preserves the letter distribution up to a rotation (Section 3), so a distribution-based statistic is enough.
+      A cipher that hides the distribution, like the ElGamal blocks above, cannot be attacked this way.</li>
+    <li><strong>Remark.</strong> The test windows overlap, since the test corpus is short (about 760 letters), so the long-length results are less independent than they look.</li>
+  </ul>
+
+  </article>
+
+  </main>
+
+  <footer class="site-footer">Statistics course &middot; Labs</footer>
+  
+  <script src="/statistica/static/labs/lab3/elgamal.js"></script>
+  <script src="/statistica/static/labs/lab3/caesar.js"></script>
+  <script src="/statistica/static/labs/lab3/corpus.js"></script>
+  <script src="/statistica/static/labs/lab3/cryptanalysis.js"></script>
+
+</body>
+</html>
