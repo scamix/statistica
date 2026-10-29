@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lab 4 &middot; HMWK 4 — Random walks, LLN and CLT</title>
+  <link rel="stylesheet" href="/statistica/static/labs/style.css">
+  
+  <style>
+    .keygen { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; margin-bottom: 0.75rem; }
+    .keygen input, .keygen select { padding: 0.35rem; font: inherit; }
+    .keygen input[type="number"] { width: 5.5rem; }
+    .keygen button { padding: 0.4rem 0.9rem; font: inherit; cursor: pointer; }
+    .note { color: var(--muted); font-size: 0.9rem; }
+    .scroll { overflow-x: auto; }
+    .stats { border-collapse: collapse; font-size: 0.9rem; }
+    .stats th, .stats td { text-align: left; padding: 0.35rem 0.8rem; border-bottom: 1px solid var(--border); }
+    canvas { width: 100%; height: 260px; display: block; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; }
+    .plots { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem; }
+    .plots h4 { margin: 0 0 0.25rem; font-size: 0.95rem; }
+  </style>
+
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="/statistica/">Statistics Labs</a>
+    <nav>
+      
+        <a href="/statistica/lab1/"
+           >Lab 1</a>
+      
+        <a href="/statistica/lab2/"
+           >Lab 2</a>
+      
+        <a href="/statistica/lab3/"
+           >Lab 3</a>
+      
+        <a href="/statistica/lab4/"
+           aria-current="page">Lab 4</a>
+      
+    </nav>
+  </header>
+
+  <main class="container">
+    
+  <p class="breadcrumb"><a href="/statistica/">&larr; All labs</a></p>
+  <h1>Lab 4: HMWK 4 — Random walks, LLN and CLT</h1>
+  <p class="lead">n systems and m attackers: simulate Bernoulli and Rademacher penetration scores and compare S_n, S_n/n and S_n/√n against the Law of Large Numbers and the Central Limit Theorem.</p>
+
+  <article class="lab-body">
+    
+  <h2>1. Model</h2>
+  <p>
+    There are <code>n</code> systems and <code>m</code> attackers. Each attacker works through the systems one after the other and
+    scores <code>X<sub>i</sub></code> on the <code>i</code>-th one; the increments are i.i.d. and the running total
+    <code>S<sub>k</sub> = X<sub>1</sub> + … + X<sub>k</sub></code> is a random walk. The <code>m</code> attackers are independent
+    trajectories of the same process, so the <code>m</code> values of <code>S<sub>n</sub></code> are a sample of its distribution.
+  </p>
+  <table class="stats">
+    <thead><tr><th>Model</th><th>Score</th><th><code>μ = E[X]</code></th><th><code>σ² = Var[X]</code></th></tr></thead>
+    <tbody>
+      <tr><td>Bernoulli</td><td><code>X ∈ {0, 1}</code>, <code>P(X=1)=p</code> (system penetrated or not)</td><td><code>p</code></td><td><code>p(1−p)</code></td></tr>
+      <tr><td>Rademacher</td><td><code>X ∈ {−1, +1}</code>, probability ½ each (symmetric, zero mean)</td><td><code>0</code></td><td><code>1</code></td></tr>
+    </tbody>
+  </table>
+  <p>The three quantities and their exact moments (independence gives <code>Var[S<sub>n</sub>] = nσ²</code>):</p>
+  <table class="stats">
+    <thead><tr><th>Quantity</th><th>Mean</th><th>Variance</th><th>Behaviour as n grows</th></tr></thead>
+    <tbody>
+      <tr><td><code>S<sub>n</sub></code></td><td><code>nμ</code></td><td><code>nσ²</code></td><td>spread grows like √n</td></tr>
+      <tr><td><code>S<sub>n</sub>/n</code></td><td><code>μ</code></td><td><code>σ²/n</code></td><td>collapses on <code>μ</code> (LLN)</td></tr>
+      <tr><td><code>S<sub>n</sub>/√n</code></td><td><code>√n·μ</code></td><td><code>σ²</code></td><td>stable spread; normal limit (CLT) when <code>μ = 0</code></td></tr>
+    </tbody>
+  </table>
+
+  <h2>2. Simulation</h2>
+  <p>
+    Each run simulates <code>m</code> trajectories of 10 000 steps for both models and reads <code>S<sub>n</sub></code> at
+    <code>n = 10, 100, 1000, 10000</code>, so all values of <code>n</code> come from the same trajectories. The seed makes runs reproducible.
+  </p>
+  <form id="sim-form" class="keygen">
+    <label for="m">Attackers m</label>
+    <input id="m" type="number" value="3000" min="100" max="10000" step="100">
+    <label for="p">Bernoulli p</label>
+    <input id="p" type="number" value="0.3" min="0.01" max="0.99" step="0.05">
+    <label for="seed">Seed</label>
+    <input id="seed" type="number" value="1">
+    <button type="submit">Simulate</button>
+  </form>
+
+  <form class="keygen" onsubmit="return false">
+    <label for="model">Plot model</label>
+    <select id="model"><option value="rademacher">Rademacher</option><option value="bernoulli">Bernoulli</option></select>
+    <label for="n">at</label>
+    <select id="n"></select>
+    <label for="eps">LLN tolerance ε</label>
+    <input id="eps" type="number" value="0.1" min="0.01" max="1" step="0.01">
+  </form>
+
+  <h3>Sample trajectories</h3>
+  <canvas id="cv-paths"></canvas>
+  <p class="note">Eight attackers. The dashed envelope <code>μk ± 2σ√k</code> widens like √k and contains about 95% of the paths:
+    the walk spreads out, it does not settle.</p>
+
+  <h3>Distributions of the three quantities</h3>
+  <div class="plots">
+    <div><h4>Total score <code>S<sub>n</sub></code></h4><canvas id="cv-sum"></canvas></div>
+    <div><h4>Average score <code>S<sub>n</sub>/n</code></h4><canvas id="cv-avg"></canvas></div>
+    <div><h4>Normalized score <code>S<sub>n</sub>/√n</code></h4><canvas id="cv-norm"></canvas></div>
+    <div><h4>Standardized <code>(S<sub>n</sub> − nμ)/(σ√n)</code></h4><canvas id="cv-std"></canvas></div>
+  </div>
+  <p id="plot-note" class="note"></p>
+
+  <h2>3. Variance under the three normalizations</h2>
+  <p>Empirical sample variance over the <code>m</code> attackers / theoretical value.</p>
+  <div class="scroll">
+    <table class="stats">
+      <thead><tr><th>Model</th><th>n</th><th><code>Var[S<sub>n</sub>]</code></th><th><code>Var[S<sub>n</sub>/n]</code></th><th><code>Var[S<sub>n</sub>/√n]</code></th></tr></thead>
+      <tbody id="tbl-var"></tbody>
+    </table>
+  </div>
+  <ul>
+    <li><code>S<sub>n</sub></code>: variance grows linearly (<code>nσ²</code>); the totals of different attackers drift further apart.</li>
+    <li><code>S<sub>n</sub>/n</code>: variance shrinks like <code>σ²/n</code>; dividing by <code>n</code> is too strong and everything concentrates.</li>
+    <li><code>S<sub>n</sub>/√n</code>: variance stays at <code>σ²</code>. The scale <code>√n</code> is the only one that gives a non-degenerate limit.</li>
+  </ul>
+
+  <h2>4. Law of Large Numbers</h2>
+  <p>
+    <code>S<sub>n</sub>/n → μ</code> in probability: for every <code>ε &gt; 0</code>, <code>P(|S<sub>n</sub>/n − μ| ≥ ε) → 0</code>.
+    Chebyshev gives the explicit bound <code>σ²/(nε²)</code>. Here ε = <span id="eps-lbl"></span>.
+  </p>
+  <div class="scroll">
+    <table class="stats">
+      <thead><tr><th>Model</th><th>n</th><th>mean of <code>S<sub>n</sub>/n</code></th><th>empirical <code>P(|S<sub>n</sub>/n − μ| ≥ ε)</code></th><th>Chebyshev bound</th></tr></thead>
+      <tbody id="tbl-lln"></tbody>
+    </table>
+  </div>
+  <p class="note">The bound is valid but loose (it reaches the empirical value only in order of magnitude); the actual decay is exponential in <code>n</code> (Hoeffding).</p>
+
+  <h2>5. Central Limit Theorem</h2>
+  <p>
+    If <code>μ = 0</code> (Rademacher), <code>S<sub>n</sub>/√n → N(0, 1)</code> in distribution. For a general model the statement applies to
+    <code>(S<sub>n</sub> − nμ)/(σ√n)</code>. The table gives the mean of <code>S<sub>n</sub>/√n</code> and the Kolmogorov–Smirnov distance
+    between the standardized sample and <code>N(0,1)</code>.
+  </p>
+  <div class="scroll">
+    <table class="stats">
+      <thead><tr><th>Model</th><th>n</th><th>mean of <code>S<sub>n</sub>/√n</code></th><th>KS distance (standardized)</th></tr></thead>
+      <tbody id="tbl-clt"></tbody>
+    </table>
+  </div>
+  <ul>
+    <li>For <code>n = 10</code> the Rademacher histogram is visibly discrete (11 possible values) and the KS distance is large: the normal is only an approximation.</li>
+    <li>The KS distance shrinks as <code>n</code> grows until it reaches the noise floor of a finite sample, about <code>1/√m</code>
+      (5% critical value for exact <code>N(0,1)</code>: <span id="ks-crit"></span>). Beyond that, larger <code>n</code> cannot be told apart from the limit with this <code>m</code>; a larger <code>m</code> is needed.</li>
+    <li>Bernoulli with <code>p ≠ ½</code> is skewed for small <code>n</code>; the CLT still holds, but convergence is slower the further <code>p</code> is from ½.</li>
+    <li>Without centering, <code>S<sub>n</sub>/√n</code> is not tight when <code>μ ≠ 0</code>: its mean <code>√n·p</code> diverges, as the table shows for Bernoulli. LLN and CLT describe different scales: the first is the centre, the second the fluctuation around it.</li>
+  </ul>
+
+  <h2>6. Interpretation: systems and attackers</h2>
+  <ul>
+    <li><strong>One attacker, n systems.</strong> <code>S<sub>n</sub></code> is the attacker's cumulative penetration score. With Bernoulli, it counts compromised systems, with mean <code>np</code>; the path is a noisy line of slope <code>p</code>.
+      With Rademacher, successes and setbacks cancel and the attacker's total wanders around 0 with typical size <code>√n</code>.</li>
+    <li><strong>Effect of the system size n.</strong> Larger <code>n</code> makes the <em>fraction</em> of compromised systems <code>S<sub>n</sub>/n</code> predictable (variance <code>p(1−p)/n</code>), while the <em>count</em> becomes less predictable in absolute terms
+      (standard deviation <code>σ√n</code>). Large infrastructures behave in aggregate like their average; the risk of a given attacker's total is not small in absolute terms.</li>
+    <li><strong>Effect of the number of attackers m.</strong> Attackers are independent replicas, so <code>m</code> does not change the distribution of any single <code>S<sub>n</sub></code>.
+      It controls how well we can <em>estimate</em> it: the error of an empirical mean or probability scales like <code>1/√m</code>, and the histogram and KS distance become sharper. Pooling all attackers gives
+      <code>mn</code> trials with total mean <code>mnμ</code> and variance <code>mnσ²</code>, so the same LLN and CLT apply to the aggregate score.</li>
+    <li><strong>Symmetric case.</strong> In the zero-mean model no attacker has a systematic advantage; any large positive total is a fluctuation, of order <code>σ√n</code>, which the normal law quantifies (about 95% of totals lie within <code>±2√n</code>).</li>
+    <li><strong>Assumption.</strong> The conclusions rely on independence and identical distribution of the systems. Correlated systems (shared credentials, common software) increase the variance beyond <code>nσ²</code> and can slow or break the √n scaling.</li>
+  </ul>
+
+  </article>
+
+  </main>
+
+  <footer class="site-footer">Statistics course &middot; Labs</footer>
+  
+  <script src="/statistica/static/labs/lab4/sim.js"></script>
+  <script src="/statistica/static/labs/lab4/plots.js"></script>
+
+</body>
+</html>

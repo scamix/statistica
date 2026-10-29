@@ -26,6 +26,13 @@ LABS = [
         "description": "EC-ElGamal on the toy secp256k1-style curve of Lab 1: "
         "encrypt and decrypt a message, compare it with the Caesar cipher, then break Caesar with letter statistics.",
     },
+    {
+        "slug": "lab4",
+        "title": "Lab 4",
+        "subtitle": "HMWK 4 — Random walks, LLN and CLT",
+        "description": "n systems and m attackers: simulate Bernoulli and Rademacher penetration scores "
+        "and compare S_n, S_n/n and S_n/√n against the Law of Large Numbers and the Central Limit Theorem.",
+    },
 ]
 
 
