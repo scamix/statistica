@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lab 5 &middot; HMWK 5 — Welford’s recurrences, sampling mean and variance</title>
+  <link rel="stylesheet" href="/statistica/static/labs/style.css">
+  
+  <style>
+    .keygen { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; margin-bottom: 0.75rem; }
+    .keygen input, .keygen select { padding: 0.35rem; font: inherit; }
+    .keygen input[type="number"] { width: 5.5rem; }
+    .keygen input.wide { width: 18rem; }
+    .keygen button { padding: 0.4rem 0.9rem; font: inherit; cursor: pointer; }
+    .note { color: var(--muted); font-size: 0.9rem; }
+    .scroll { overflow-x: auto; }
+    .stats { border-collapse: collapse; font-size: 0.9rem; }
+    .stats th, .stats td { text-align: left; padding: 0.35rem 0.8rem; border-bottom: 1px solid var(--border); }
+    .eq { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 0.6rem 0.9rem; overflow-x: auto; font-family: monospace; line-height: 1.7; }
+    pre { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 0.6rem 0.9rem; overflow-x: auto; }
+    canvas { width: 100%; height: 260px; display: block; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; }
+    .plots { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem; }
+    .plots h4 { margin: 0 0 0.25rem; font-size: 0.95rem; }
+  </style>
+
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="/statistica/">Statistics Labs</a>
+    <nav>
+      
+        <a href="/statistica/lab1/"
+           >Lab 1</a>
+      
+        <a href="/statistica/lab2/"
+           >Lab 2</a>
+      
+        <a href="/statistica/lab3/"
+           >Lab 3</a>
+      
+        <a href="/statistica/lab4/"
+           >Lab 4</a>
+      
+        <a href="/statistica/lab5/"
+           aria-current="page">Lab 5</a>
+      
+    </nav>
+  </header>
+
+  <main class="container">
+    
+  <p class="breadcrumb"><a href="/statistica/">&larr; All labs</a></p>
+  <h1>Lab 5: HMWK 5 — Welford’s recurrences, sampling mean and variance</h1>
+  <p class="lead">Derive and code Welford’s online formulas for the sum of squares and the variance, then use them on m hackers scoring 0–10 on n systems to compare the averages of x̄ and s² with μ and σ².</p>
+
+  <article class="lab-body">
+    
+  <p class="note">This homework extends <a href="/statistica/lab4/">Lab 4 (random walks, LLN and CLT)</a>:
+    the same m hackers and n systems, now with a score in [0, 10] for every attempt.</p>
+
+  <h2>Ex. 1 — Welford's recurrence formulas</h2>
+
+  <h3>1.1 Knuth's recurrence for the mean</h3>
+  <p>Let <code>M<sub>k</sub> = (x<sub>1</sub> + … + x<sub>k</sub>)/k</code>. Split off the last term and use <code>(k−1)M<sub>k−1</sub> = x<sub>1</sub> + … + x<sub>k−1</sub></code>:</p>
+  <div class="eq">
+    M<sub>k</sub> = ((k−1)·M<sub>k−1</sub> + x<sub>k</sub>) / k = M<sub>k−1</sub> + (x<sub>k</sub> − M<sub>k−1</sub>) / k,&nbsp;&nbsp;&nbsp; M<sub>1</sub> = x<sub>1</sub>
+  </div>
+  <p>The new mean is the old mean corrected by a fraction <code>1/k</code> of the "surprise" <code>x<sub>k</sub> − M<sub>k−1</sub></code>.
+    Two facts used below follow directly:</p>
+  <div class="eq">
+    (A)&nbsp; k·(M<sub>k</sub> − M<sub>k−1</sub>) = x<sub>k</sub> − M<sub>k−1</sub><br>
+    (B)&nbsp; (k−1)·M<sub>k−1</sub> = k·M<sub>k</sub> − x<sub>k</sub>
+  </div>
+
+  <h3>1.2 Welford's recurrence for the sum of squares</h3>
+  <p>Define the sum of squared deviations <code>SS<sub>k</sub> = Σ<sub>i≤k</sub> (x<sub>i</sub> − M<sub>k</sub>)²</code>. Expanding the square,
+    <code>SS<sub>k</sub> = Σ<sub>i≤k</sub> x<sub>i</sub>² − k·M<sub>k</sub>²</code>. Following the same approach as for the mean, look at the increment:</p>
+  <div class="eq">
+    SS<sub>k</sub> − SS<sub>k−1</sub> = x<sub>k</sub>² − k·M<sub>k</sub>² + (k−1)·M<sub>k−1</sub>²<br>
+    &nbsp;&nbsp;= x<sub>k</sub>² − k·M<sub>k</sub>² + M<sub>k−1</sub>·(k·M<sub>k</sub> − x<sub>k</sub>)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;by (B)<br>
+    &nbsp;&nbsp;= x<sub>k</sub>·(x<sub>k</sub> − M<sub>k−1</sub>) − M<sub>k</sub>·k·(M<sub>k</sub> − M<sub>k−1</sub>)<br>
+    &nbsp;&nbsp;= x<sub>k</sub>·(x<sub>k</sub> − M<sub>k−1</sub>) − M<sub>k</sub>·(x<sub>k</sub> − M<sub>k−1</sub>)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;by (A)<br>
+    &nbsp;&nbsp;= (x<sub>k</sub> − M<sub>k−1</sub>)·(x<sub>k</sub> − M<sub>k</sub>)
+  </div>
+  <div class="eq">
+    <strong>SS<sub>k</sub> = SS<sub>k−1</sub> + (x<sub>k</sub> − M<sub>k−1</sub>)·(x<sub>k</sub> − M<sub>k</sub>),&nbsp;&nbsp;&nbsp; SS<sub>1</sub> = 0</strong>
+  </div>
+  <p>The increment is the product of the deviation from the old mean and the deviation from the new mean. It is never negative
+    (both factors have the same sign, since <code>M<sub>k</sub></code> lies between <code>M<sub>k−1</sub></code> and <code>x<sub>k</sub></code>), so <code>SS<sub>k</sub></code> can only grow.
+    An equivalent form, using (A), is <code>SS<sub>k</sub> = SS<sub>k−1</sub> + (k−1)/k · (x<sub>k</sub> − M<sub>k−1</sub>)²</code>.</p>
+
+  <h3>1.3 Recurrence for the variance</h3>
+  <p>The sample (unbiased) variance is <code>s<sub>k</sub>² = SS<sub>k</sub>/(k−1)</code>. Substituting <code>SS<sub>k</sub> = (k−1)s<sub>k</sub>²</code> and <code>SS<sub>k−1</sub> = (k−2)s<sub>k−1</sub>²</code>
+    gives a recurrence with exactly the shape of Knuth's formula (old value + correction / count):</p>
+  <div class="eq">
+    s<sub>k</sub>² = s<sub>k−1</sub>² + [ (x<sub>k</sub> − M<sub>k−1</sub>)(x<sub>k</sub> − M<sub>k</sub>) − s<sub>k−1</sub>² ] / (k−1),&nbsp;&nbsp;&nbsp; k ≥ 2<br>
+    σ̂<sub>k</sub>² = σ̂<sub>k−1</sub>² + [ (x<sub>k</sub> − M<sub>k−1</sub>)(x<sub>k</sub> − M<sub>k</sub>) − σ̂<sub>k−1</sub>² ] / k&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(population form, σ̂<sub>k</sub>² = SS<sub>k</sub>/k)
+  </div>
+  <p>In practice one updates <code>SS</code> and divides only when the variance is needed.</p>
+
+  <h3>1.4 Code</h3>
+  <p>The core logic is three lines: one deviation, Knuth's update, Welford's update.</p>
+<pre><code>// JavaScript (labs/static/labs/lab5/sim.js)
+k += 1;
+const d = x - mean;      // deviation from the OLD mean
+mean += d / k;           // Knuth
+ss += d * (x - mean);    // Welford: (x − M_{k−1})(x − M_k)
+// variance = ss / (k − 1)</code></pre>
+<pre><code># Python
+def welford(xs):
+    k, mean, ss = 0, 0.0, 0.0
+    for x in xs:
+        k += 1
+        d = x - mean
+        mean += d / k
+        ss += d * (x - mean)
+    return mean, ss / (k - 1)</code></pre>
+  <p>Why not the textbook one-pass formula <code>(Σx² − (Σx)²/n)/(n−1)</code>? It subtracts two huge, nearly equal numbers. Welford only ever squares
+    <em>deviations</em>, which are small, so it stays accurate while reading the data once (an online, streaming algorithm). Try a large offset below:</p>
+
+  <form id="trace-form" class="keygen">
+    <label for="xs">Data</label>
+    <input id="xs" class="wide" type="text" value="3 7 7 19 24">
+    <label for="offset">Add offset</label>
+    <input id="offset" type="number" value="0" style="width:9rem">
+    <button type="submit">Run</button>
+  </form>
+  <div class="scroll">
+    <table class="stats">
+      <thead><tr><th>k</th><th>x<sub>k</sub></th><th>M<sub>k</sub></th><th>SS<sub>k</sub></th><th>s<sub>k</sub>²</th></tr></thead>
+      <tbody id="trace-out"></tbody>
+    </table>
+  </div>
+  <table class="stats" style="margin-top:0.75rem">
+    <thead><tr><th>Method</th><th>Sample variance</th></tr></thead>
+    <tbody id="cmp-out"></tbody>
+  </table>
+  <p class="note">With offset 0 all three agree (variance 81). With offset <code>1e9</code> the variance should not change; Welford is still correct to about 7 digits,
+    while the naive formula returns 0 because <code>x²</code> ≈ 10<sup>18</sup> exceeds the 2<sup>53</sup> precision of a double.</p>
+
+  <h2>Ex. 2 — Sampling mean and variance</h2>
+
+  <h3>2.1 Model</h3>
+  <p>There are <code>m</code> hackers, each attacking <code>n</code> systems. Each attempt receives a score <code>X ∈ [0, 10]</code>, i.i.d. from a fixed distribution
+    with mean <code>μ</code> and variance <code>σ²</code>. A hacker's <code>n</code> scores are one sample of size <code>n</code>; Welford's formulas give its
+    sampling mean <code>x̄</code> and sampling variance <code>s² = SS<sub>n</sub>/(n−1)</code>. The <code>m</code> hackers are <code>m</code> independent repetitions of the same sampling experiment.</p>
+  <table class="stats">
+    <thead><tr><th>Distribution</th><th>Meaning</th><th><code>μ</code></th><th><code>σ²</code></th></tr></thead>
+    <tbody>
+      <tr><td>Binomial(10, p)</td><td>each attempt is 10 sub-tests, each passed with probability <code>p</code> (Lab 4's Bernoulli, ten times); integer score</td><td><code>10p</code></td><td><code>10p(1−p)</code></td></tr>
+      <tr><td>Bernoulli(p) × Uniform(0, 10)</td><td>penetration fails (score 0) with prob. <code>1−p</code>; on success the score is uniform in (0, 10). Skewed, with a mass at 0</td><td><code>5p</code></td><td><code>100p/3 − 25p²</code></td></tr>
+      <tr><td>Uniform(0, 10)</td><td>continuous, symmetric</td><td><code>5</code></td><td><code>100/12 ≈ 8.33</code></td></tr>
+    </tbody>
+  </table>
+  <p>The theory we compare against (for i.i.d. samples of size <code>n</code>, with <code>μ₄ = E[(X−μ)⁴]</code>):</p>
+  <div class="eq">
+    E[x̄] = μ,&nbsp;&nbsp;&nbsp; Var[x̄] = σ²/n<br>
+    E[s²] = σ²&nbsp;&nbsp; (because of the n−1),&nbsp;&nbsp;&nbsp; E[SS/n] = (n−1)/n · σ²&nbsp;&nbsp; (biased)<br>
+    Var[s²] = ( μ₄ − σ⁴·(n−3)/(n−1) ) / n
+  </div>
+
+  <h3>2.2 Simulation</h3>
+  <p>Each hacker attacks 1000 systems; Welford's running state is read after <code>n = 2, 5, 10, 30, 100, 1000</code> scores, so every <code>n</code> uses the same trajectories.
+    The averages across hackers are also computed with Welford.</p>
+  <form id="sim-form" class="keygen">
+    <label for="dist">Score distribution</label>
+    <select id="dist">
+      <option value="binomial">Binomial(10, p)</option>
+      <option value="zeroinf">Bernoulli(p) × Uniform(0,10)</option>
+      <option value="uniform">Uniform(0, 10)</option>
+    </select>
+    <span id="p-wrap"><label for="p">p</label> <input id="p" type="number" value="0.3" min="0.01" max="0.99" step="0.05"></span>
+    <label for="m">Hackers m</label>
+    <input id="m" type="number" value="2000" min="50" max="10000" step="50">
+    <label for="seed">Seed</label>
+    <input id="seed" type="number" value="1">
+    <button type="submit">Simulate</button>
+  </form>
+  <p id="theory" class="note"></p>
+
+  <h3>2.3 Average of the sampling means and variances vs μ and σ²</h3>
+  <p>The <code>z</code> columns divide the gap by its standard error (<code>√(Var[x̄]/m)</code> and <code>√(Var[s²]/m)</code>); values within about ±2 mean the
+    average agrees with the theory up to simulation noise.</p>
+  <div class="scroll">
+    <table class="stats">
+      <thead><tr><th>n</th><th>avg of x̄</th><th>μ</th><th>z</th><th>avg of s²</th><th>σ²</th><th>z</th><th>avg of SS/n / (n−1)σ²/n</th></tr></thead>
+      <tbody id="tbl-avg"></tbody>
+    </table>
+  </div>
+
+  <h3>2.4 Variability across hackers</h3>
+  <p>Empirical variance over the <code>m</code> hackers / theoretical value, and the empirical standard deviation.</p>
+  <div class="scroll">
+    <table class="stats">
+      <thead><tr><th>n</th><th>Var[x̄] / σ²/n</th><th>SD[x̄]</th><th>Var[s²] / exact</th><th>SD[s²]</th></tr></thead>
+      <tbody id="tbl-var"></tbody>
+    </table>
+  </div>
+
+  <div class="plots" style="margin-top:1rem">
+    <div><h4>Standard deviation of x̄ and s² vs n (log–log)</h4><canvas id="cv-sd"></canvas></div>
+  </div>
+
+  <form class="keygen" onsubmit="return false" style="margin-top:1rem">
+    <label for="n">Histograms at</label>
+    <select id="n"></select>
+  </form>
+  <div class="plots">
+    <div><h4>Sampling means <code>x̄</code> of the m hackers</h4><canvas id="cv-mean"></canvas></div>
+    <div><h4>Sampling variances <code>s²</code> of the m hackers</h4><canvas id="cv-var"></canvas></div>
+  </div>
+  <p id="plot-note" class="note"></p>
+
+  <h3>Running estimates of eight hackers</h3>
+  <div class="plots">
+    <div><h4>Running mean <code>M<sub>k</sub></code> (dashed: <code>μ ± 2σ/√k</code>)</h4><canvas id="cv-run-mean"></canvas></div>
+    <div><h4>Running variance <code>s<sub>k</sub>²</code> (red: <code>σ²</code>)</h4><canvas id="cv-run-var"></canvas></div>
+  </div>
+  <p class="note">This is exactly what Welford's state looks like while the scores arrive: each line converges to the true parameter as the hacker attacks more systems.</p>
+
+  <h2>Conclusions</h2>
+  <h3>What the comparisons show</h3>
+  <ul>
+    <li><strong>The average of the sampling means matches μ</strong> for every <code>n</code>, even <code>n = 2</code>: <code>x̄</code> is an <em>unbiased</em> estimator, <code>E[x̄] = μ</code>.
+      Any single hacker can be far off; on average there is no systematic error.</li>
+    <li><strong>The average of the sampling variances matches σ²</strong> for every <code>n</code>, because <code>s²</code> divides by <code>n−1</code> (Bessel's correction).
+      Dividing by <code>n</code> instead gives on average <code>(n−1)/n·σ²</code>: half of σ² at <code>n = 2</code>, 10% low at <code>n = 10</code> (last column). The reason is that the deviations are taken from
+      <code>x̄</code>, which is fitted to the same data and is closer to them than <code>μ</code> is: one degree of freedom is used up.</li>
+    <li>The residual gaps are of the size predicted by the standard errors (|z| mostly below 2). They shrink with <code>m</code>, not with <code>n</code>: <code>m</code> controls how well the simulation measures
+      the expectation. The rows use the same trajectories, so their z values are correlated.</li>
+  </ul>
+
+  <h3>Why this matters in inferential statistics</h3>
+  <ul>
+    <li>In practice <code>μ</code> and <code>σ²</code> are unknown and we see <em>one</em> sample (one hacker). The <code>m</code> hackers simulate the frequentist thought experiment of repeating the sampling many times;
+      the histograms are the <em>sampling distributions</em> of <code>x̄</code> and <code>s²</code>.</li>
+    <li>Unbiasedness justifies using <code>x̄</code> and <code>s²</code> as point estimates of <code>μ</code> and <code>σ²</code>.</li>
+    <li><code>Var[x̄] = σ²/n</code>, estimated by <code>s²/n</code>, gives the <strong>standard error</strong> <code>s/√n</code>. Together with the CLT (the histogram of <code>x̄</code> becomes normal) it yields
+      confidence intervals <code>x̄ ± t·s/√n</code> and hypothesis tests (e.g. "is this hacker's mean score above 5?"). Inference on variances (χ² intervals, F tests) relies on the distribution of <code>s²</code>.</li>
+    <li>Welford makes all this computable online: a monitoring system can keep, for every attacker, the running mean and variance of their scores in O(1) memory and update them on each new attempt.</li>
+  </ul>
+
+  <h3>Effect of n (systems per hacker)</h3>
+  <ul>
+    <li><strong>The centre does not move:</strong> the average of <code>x̄</code> stays at <code>μ</code> and that of <code>s²</code> at <code>σ²</code> for every <code>n</code>. Larger <code>n</code> does not remove bias (there is none); it removes noise.</li>
+    <li><strong>Sampling means:</strong> <code>Var[x̄] = σ²/n</code>, so the spread of the hackers' means falls like <code>1/√n</code> (slope −½ on the log–log plot). Going from 10 to 1000 systems makes it 10 times narrower.
+      The histogram becomes more and more normal (CLT), even for the skewed zero-inflated scores.</li>
+    <li><strong>Sampling variances:</strong> <code>Var[s²] ≈ (μ₄ − σ⁴)/n</code> for large <code>n</code>, also decaying like <code>1/√n</code> in SD, but starting much higher. For small <code>n</code> the distribution of <code>s²</code> is
+      strongly right-skewed (many hackers well below σ², a few far above; <code>s²</code> can even be 0) and the variance is harder to estimate than the mean. Heavy tails (large <code>μ₄</code>, as in the zero-inflated model) make it worse.</li>
+    <li>Both estimators are therefore <strong>consistent</strong>: each individual hacker's <code>x̄</code> and <code>s²</code> converge to <code>μ</code> and <code>σ²</code> (the running plots), which is the Law of Large Numbers of Lab 4 applied to <code>X</code> and to <code>(X−μ)²</code>.</li>
+  </ul>
+
+  </article>
+
+  </main>
+
+  <footer class="site-footer">Statistics course &middot; Labs</footer>
+  
+  <script src="/statistica/static/labs/lab5/sim.js"></script>
+  <script src="/statistica/static/labs/lab5/plots.js"></script>
+
+</body>
+</html>

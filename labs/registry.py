@@ -33,6 +33,13 @@ LABS = [
         "description": "n systems and m attackers: simulate Bernoulli and Rademacher penetration scores "
         "and compare S_n, S_n/n and S_n/√n against the Law of Large Numbers and the Central Limit Theorem.",
     },
+    {
+        "slug": "lab5",
+        "title": "Lab 5",
+        "subtitle": "HMWK 5 — Welford’s recurrences, sampling mean and variance",
+        "description": "Derive and code Welford’s online formulas for the sum of squares and the variance, then use them on "
+        "m hackers scoring 0–10 on n systems to compare the averages of x̄ and s² with μ and σ².",
+    },
 ]
 
 

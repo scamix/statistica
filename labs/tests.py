@@ -37,6 +37,12 @@ class LabsViewsTests(TestCase):
         self.assertContains(response, "labs/lab4/sim.js")
         self.assertContains(response, "labs/lab4/plots.js")
 
+    def test_lab5_loads_scripts_and_links_lab4(self):
+        response = self.client.get(reverse("labs:lab_detail", args=["lab5"]))
+        self.assertContains(response, "labs/lab5/sim.js")
+        self.assertContains(response, "labs/lab5/plots.js")
+        self.assertContains(response, reverse("labs:lab_detail", args=["lab4"]))
+
     def test_unknown_lab_returns_404(self):
         response = self.client.get(reverse("labs:lab_detail", args=["lab999"]))
         self.assertEqual(response.status_code, 404)
