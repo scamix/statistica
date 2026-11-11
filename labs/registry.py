@@ -40,6 +40,13 @@ LABS = [
         "description": "Derive and code Welford’s online formulas for the sum of squares and the variance, then use them on "
         "m hackers scoring 0–10 on n systems to compare the averages of x̄ and s² with μ and σ².",
     },
+    {
+        "slug": "lab6",
+        "title": "Lab 6",
+        "subtitle": "HMWK 6 — Riemann vs Lebesgue integration, the normal CDF",
+        "description": "Approximate integrals by partitioning the domain (Riemann) or the range (Lebesgue), up to the Dirichlet "
+        "and Thomae functions; then compute Φ(x) numerically and see why Liouville's theorem makes erf necessary.",
+    },
 ]
 
 

@@ -43,6 +43,11 @@ class LabsViewsTests(TestCase):
         self.assertContains(response, "labs/lab5/plots.js")
         self.assertContains(response, reverse("labs:lab_detail", args=["lab4"]))
 
+    def test_lab6_loads_scripts(self):
+        response = self.client.get(reverse("labs:lab_detail", args=["lab6"]))
+        for script in ("integrate.js", "normal.js", "ui.js"):
+            self.assertContains(response, f"labs/lab6/{script}")
+
     def test_unknown_lab_returns_404(self):
         response = self.client.get(reverse("labs:lab_detail", args=["lab999"]))
         self.assertEqual(response.status_code, 404)
